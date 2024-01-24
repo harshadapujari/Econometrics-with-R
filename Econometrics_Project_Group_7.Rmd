@@ -1,0 +1,455 @@
+---
+title: 'Effect of Education on Savings'
+author: "Harshada Pujari, Mabisa Chhetry, Khushboo Surana"
+
+date: "12/03/2023"
+output:
+  html_document: default
+  header-includes: \usepackage{color}
+fontsize: 12pt
+margin: 1in
+---
+
+
+```{r setup, echo=FALSE, message=F, warning=F}
+# echo = False - means it does not print the code
+#==============================================================================
+#   This chunk will be used for every assignment
+#==============================================================================
+
+  # Clear the working space
+    rm(list = ls())
+
+  #Set working directory
+setwd("C:/Users/harsh/OneDrive/Documents/Harshada documents/SantaClara/ECON2509 Adina Ardelean")
+#setwd("C:/Users/mabis/OneDrive/Documents/ECON 2509/R")
+#setwd("C:/Users/khush/Desktop/SCU/Econometrics/Project")
+
+### Load the packages (all must have been installed)
+    library(tidyverse)
+    library(doBy)
+    library(foreign)
+    library(knitr)
+    library(lmtest)
+    library(readstata13)
+    library(sandwich)
+    library(stargazer)
+    library(AER)
+    library(gdata)
+    library(wooldridge)
+    library(openintro)
+    library(readxl)
+    library(erer)
+
+
+#function CSE
+cse=function(reg) {
+    rob=sqrt(diag(vcovHC(reg, type="HC1")))
+    return(rob)
+    }
+
+```
+
+
+
+```{r data, echo=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+
+### Data section: loading data
+ 
+data("saving") # loads the data saving
+str(saving) # summarizes the data
+
+
+### Creating new data set sp
+
+sp<-drop_na(saving,c("inc","size","educ","age","black","cons")) # dropping the rows with missing values
+sp=as.data.frame(sp) #convert the data into a R data frame
+sp_small = subset(sp,sav<10000) #create a subset without the outlier
+
+```
+
+<h3 align="center"><font color="#00008B">Abstract</font></h3>
+This study investigates the influence of education of household heads on annual savings. We have conducted our analysis using a 1980's data set of 100 individuals residing in the US. The data is analyzed using regression analysis to identify the relationship between years of education and annual savings. Our findings reveal a statistically significant positive correlation between years of education and increased likelihood in amount of annual savings. Regular saving of money is crucial for financial stability, that also provides a safety net for emergencies. 
+
+
+<h5 align="center"><font color="#00008B">What is the effect of education on savings?</font></h3>
+<h5 align="center"><font color="#00008B">Education has a positive effect on savings. As an individual gains more years of education, their savings will increase.</font></h2> 
+
+
+<h3 align="center"><font color="#00008B">Introduction</font></h3> 
+Does education effect savings, positively? Conducting this report shows us exactly how the years of education of an individual positively effects their savings. Other controlled variables such as annual income, family size, the age of the household, whether the individual is of an African American demographic, as well as their annual consumption all play a part in influencing how much, US dollars, a person is able to save annually. This report showcases a comprehensive exploration using different econometrics methods. The objective of this report is to derive meaningful insights, test our hypothesis as well as draw conclusion using the following data. There are several possible reasons why an individual is unable to save, such as high living standards, debt repayment, discretionary spending, or consumer culture. US, being a capitalist country, the general public might also be more inclined to invest their money, rather than save. However, a more educated person is less likely to accumulate debt, and more likely to save. Several factors contribute to the likelihood that an educated person is more inclined to save money. While individual behavior can vary, education often correlates with certain characteristics and knowledge that promote saving.
+
+<h3 align="center"><font color="#00008B">Data</font></h3> 
+Data used: saving {wooldridge}  
+A data frame with 100 observations on 7 variables.
+
+Dependent variable:  
+- `sav`: annual savings
+
+Variable of interest:    
+- `educ`: years of education, household head 
+
+Control variables:
+- `inc`: annual income, $   
+- `size`: family size   
+- `age`: age of household head    
+- `black`: =1 if the household head is black    
+- `cons`: annual consumption, $   
+
+
+
+
+
+
+```{r table, echo=FALSE, message=FALSE, warning=FALSE, comment=""}
+
+
+# Create a table of descriptive statistics using stargazer command 
+
+stargazer(sp[c("inc","size","educ","age","black","cons")], type="text", digits=2, 
+          summary.stat=c("n", "mean", "median", "sd"), 
+          title="Table for descriptive statistics.", flip=FALSE, 
+          covariate.labels=c("inc","size","educ","age","black","cons"))
+
+
+```
+
+<h5 align="left"><font color="#00008B">Descriptive statistics</font></h5>
+
+
+The above descriptive statistics reveal some patterns in the data set. The variables, income, age, and consumer spending distribution all appear right-skewed, with a higher mean than the median indicating a concentration of higher values. The standard deviation is relatively large, suggesting significant variability in consumer spending. We may have a higher presence of wealthier people in our sample. In terms of variability, family size and education demonstrate similar, symmetric distribution with some variability.The low average and limited variability in the proportion of black individuals might suggest a relatively homogeneous demographic composition in terms of race. To better understand the effect of education on savings we will have to explore how the other factors are influencing savings.    
+
+----------------------------------------------------------------------------------------------------------------------
+
+```{r graphs, echo=FALSE, message=F, warning=FALSE, comment=""}
+
+
+
+# Basic scatter plot of education on saving with outlier
+ggplot(sp, aes(x=educ, y=sav)) + geom_point(col="blue") + labs(title = "Scatter plot of Education on Savings", x = "educ", y = "sav") + 
+  stat_smooth(method=lm, col = "red", se=FALSE)
+
+# Basic scatter plot of education on saving without outlier
+ggplot(sp_small, aes(x=educ, y=sav)) + geom_point(col="blue") + labs(title = "Scatter plot of Education on Savings without Outlier", x = "educ", y = "sav") + 
+  stat_smooth(method=lm, col = "red", se=FALSE)
+
+# Basic histogram : creates histogram of savings
+ggplot(sp) + geom_histogram(aes(x=sav/100), col="blue", binwidth = 2) + labs(title = "Saving trend", x="sav") 
+
+
+```
+-----------------------------------------------------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------------------------------------------------
+
+<h5 align="left"><font color="#00008B">Plots</font></h5>
+
+Analyzing our scatter plot, which includes an outlier, reveals a clear linear relationship between education and savings. The data points are tightly concentrated around the fitted red line, suggesting a consistent relationship. Notably, there is a specific point in the number of years of education where we observe both the maximum (excluding the outlier) and the minimum savings points.  
+  
+Specifically focusing on individuals with approximately 12 years of education, corresponding to high school completion, we find a divergence in financial outcomes. Some may secure immediate employment, leading to earlier initiation of savings. On the other hand, individuals who did not fare well academically may face challenges and accumulate debt. The variations in financial trajectories at this education level highlights the diverse impact of career choices and post-education experiences on savings patterns.  
+
+When we have a bell curve distribution in our histogram with savings on the x-axis, it implies that the majority of individuals fall within a certain range of savings. There are only a few people that deviate significantly from that central tendency, of around $2000 in annual savings.  When we disregard the outlier on the right, we have a histogram that is seemingly symmetrical. We do not see a positive skewness, that indicates there are more people with lower savings nor do we see a negative skewness where there are more people with higher savings. 
+
+
+-----------------------------------------------------------------------------------------------------------------------
+
+<h3 align="center"><font color="#00008B">Analysis</font></h3>
+
+-----------------------------------------------------------------------------------------------------------------------
+
+<h5 align="left"><font color="#00008B">Regression table</font></h5>
+
+
+```{r mregression, echo=FALSE, message=F, warning=FALSE, comment=""}
+#Running a regression 1: savings on education
+lr1= lm(sav ~ educ, data = sp) 
+#Running a regression 2: savings on education, consumption
+lr2= lm(sav ~ educ + cons, data = sp)
+#Running a regression 3: savings on education, consumption and age
+lr3= lm(sav ~ educ + cons+ age, data = sp)
+#Running a regression 4: savings on education, consumption, age, I(age*size) and size
+lr4= lm(sav ~ educ + cons+ age+ I(age*size)+ size, data = sp)
+#Running a regression 5: savings on education, consumption, age, I(age*size), size and black
+lr5= lm(sav ~ educ + cons+ age+ I(age*size)+size+ black, data = sp)
+
+  
+#create a multiple regression table
+stargazer(lr1, lr2, lr3, lr4, lr5,
+          se=list(cse(lr1), cse(lr2), cse(lr3), cse(lr4), cse(lr5)),
+          title="Multiple regression ",
+          type="text", star.cutoffs=NA, df=FALSE, digits=3) 
+ 
+
+```
+
+<span style="color: #00008B; text-decoration: underline;">**Regression 1:**   </span>  
+
+$$sav = β0 +β1*educ$$
+$$sav = -1008.167 + 223.720*educ$$
+For 1 year increase in years of education the savings increases by $223.720.
+The t-stat for education is 1.66.
+Since the t-stat is greater than critical value at 10%, we can reject the null at 10% significance level.
+
+The regression explains just 5.5% variation in savings.       
+
+
+<span style="color: #00008B; text-decoration: underline;">**Regression 2:**   </span>  
+
+$$sav = -406.516+356.495*educ - 0.256*cons$$
+
+For 1 year increase in years of education the savings increases by $356.495 keeping consumption constant.
+For $1 increase in consumption the savings decreases by $0.256 keeping education constant.
+t-stat for education is 2.06 > 1.96
+The coefficient of education is significant at 5% significance level. We can reject the null at 5%.
+
+The regression model explains 21.9% of variations in savings.       
+
+
+<span style="color: #00008B; text-decoration: underline;">**Regression 3:**   </span>
+
+$$sav = -4,780.997+426.496*educ -0.301*cons+ 101.586*age$$
+
+For 1 year increase in years of education, the savings increases by $426.496 keeping consumption and age constant.
+For $1 increase in consumption, the savings decreases by $0.301 keeping education and age constant.
+For 1 year increase in age, the savings increases by $101.586 keeping education and consumption constant.
+
+t-Stat for education is 2.3 >1.96
+The coefficient of education is significant at 5% significance level. We can reject the null at 5%.
+
+The regression model explains 25.7% of variations in savings.   
+
+
+<span style="color: #00008B; text-decoration: underline;">**Regression 4:**   </span>
+
+$$sav = -11,622.300 + 434.973*educ - 0.295*cons+ 275.183*age - 45.514(age*size) + 1,731.619*size$$
+
+For 1 year increase in years of education, the savings increases by $434.973 keeping consumption, size and age constant.
+
+For $1 increase in consumption, the savings decreases by $0.295 keeping education, size and age constant.
+
+For a family size of 2, 1 year increase in the age, the savings increases by **(275.183-45.514(2))= $184.155** keeping education, size and consumption constant.
+
+For a household head of 30 years, an increase in family size by 1 increases savings **(1731.619-45.514(30))= $366.199** keeping education, age and consumption constant.   
+The constant term provides the estimated intercept or baseline value of savings in the regression model. Here, if we consider every variable to 0 to explain the constant, it doesn't makes sense since age, education and consumption cannot be 0. Thus it is not economically significant to explain the constant.   
+
+t-Stat for education is 2.33 >1.96
+The coefficient of education is significant at 5% significance level. We can reject the null at 5%.
+
+The regression model explains 26.3% of variations in savings.
+
+
+<span style="color: #00008B; text-decoration: underline;">**Regression 5:**    </span> 
+
+$$sav = -11,822.960 + 440.421*educ - 0.294*cons + 277.871*age - 46.063(age*size) + 1,753.937*size + 302.124*black$$
+
+For 1 year increase in years of education, the savings increases by $440.421 keeping consumption, size, black and age constant.
+
+For $1 increase in consumption, the savings decreases by $0.294 keeping education, size, age and black constant.
+
+For a family size of 2, 1 year increase in age, the savings increases by **(277.871-46.063(2))= $185.745** keeping education, age, size,consumption and black constant.
+
+For a household head of 30 years, an increase in family size by 1, increases the savings by **(1,753.937-46.063(30))= $372.047** keeping education, age, consumption and black constant.
+
+For a black person, the savings on an average will be $302.124 more than a non-black person keeping education, age,size and consumption constant.
+
+t-Stat for education is 2.33 >1.96
+The coefficient of education is significant at 5% significance level. We can reject the null at 5%.
+
+The regression model explains 25.5% of variations in savings.  
+  
+
+
+<h5 align="left"><font color="#00008B">Regression without outliers</font></h5>
+
+```{r regression_without_outlier, echo=FALSE, message=F, warning=FALSE, comment=""}
+#Running a regression 6: savings on education, consumption and age 
+lr6= lm(sav ~ educ + cons+ age, data = sp_small)
+#Running a regression 7: savings on education, consumption, age. size and black 
+lr7= lm(sav ~ educ + cons+ age+ size+ black, data = sp_small)
+#Running a regression 8: savings on education, consumption, age. size and I(age*size) 
+lr8= lm(sav ~ educ + cons+ age+ I(age*size)+ size, data = sp_small)
+#Running a regression 9: savings on education, (education^2), consumption, age. size, I(age*size) and I(cons&size)
+lr9= lm(sav ~ educ + I(educ^2) + cons+ age+ I(age*size)+ I(cons*size)+ size, data = sp_small)
+
+
+#create a multiple regression table
+stargazer(lr6, lr7,lr8, lr9,
+          se=list(cse(lr6), cse(lr7), cse(lr8), cse(lr9)),
+          title="Multiple regression without outlier ",
+          type="text", star.cutoffs=NA, df=FALSE, digits=3) 
+ 
+
+```
+
+
+
+<span style="color: #00008B; text-decoration: underline;">**Regression 6:**   </span>
+
+$$sav = -1305.911+175.020*educ -0.109*cons+ 35.569*age$$
+For every 1 year increase in education, saving will increase by $175.02  holding consumption and age constant.  
+
+T-Stat for education is 3.11 >2.56
+The coefficient of education is significant at 1% significance level. We can reject the null at 1%
+
+For every $1 increase in consumption, savings will decrease by $0.109,holding education and age constant.  
+
+For every 1 year increase in age of the household head,  savings will increase by $35.56, holding education and consumption constant
+
+The regression model explains 6.1% of variations in savings.
+
+
+<span style="color: #00008B; text-decoration: underline;">**Regression 7:**   </span>
+
+$$sav = -1180.034+179.950*educ -0.108*cons+ 34.556*age-39.534size+331.757black$$
+For every 1 year increase in education, savings will increase by $179.95,holding consumption, age, size and black constant  
+
+T-Stat for education is 3.15 >2.56
+The coefficient of education is significant at 1% significance level. We can reject the null at 1%.
+
+For every $1 increase in consumption, savings will decrease by $0.108, holding education, age, size and black constant. 
+
+For every 1 year increase in age of the household head, savings will increase by $34.55, holding education, consumption, size and black constant
+
+For 1 person increase in the size of a household,  there is a $39.53 decrease in savings, holding education, consumption, age, and black constant
+
+The difference in the mean of black household person's and white household person's savings is $331.75
+
+The regression model explains 4.3% of variations in savings.
+
+
+<span style="color: #00008B; text-decoration: underline;">**Regression 8:**   </span>
+
+$$sav = -4370.692+184.391*educ-0.113*cons+ 118.819*age-21.544(age*size)+770.427size$$
+**Choosing this as Baseline Regression**  
+We are using this regression as our baseline regression since the variable of interest (education), as well as other variables are statistically significant in this regression model and shows true picture without the outlier   
+
+For every 1 year increase in education, savings will increase by $184.391, holding consumption, age, size and black constant 
+
+T-Stat for education is 3.22 >2.56  
+The coefficient of education is significant at 1% significance level. We can reject the null at 1%.  
+
+For a family size of 2, 1 year increase in age, the savings increases by **(117.859-21.463(2))= $74.933** keeping education, age, size,consumption and black constant.
+
+For a household head of 30 years, an increase in family size by 1, increases the savings by **(779.661-21.463(30))= $135.771** keeping education, age, consumption and black constant. 
+
+For every $1 increase in consumption, savings will decrease by $0.114, holding education, age, size and black constant. 
+
+The regression model explains 5.7% of variations in savings.
+
+<span style="color: #00008B; text-decoration: underline;">**Regression 9:**   </span>
+
+$$sav = -3101.245-86.493*educ+11.793(educ^2)+0.048*cons+88.194*age-13.964(age*size)-0.042(cons*size)+822.285size$$
+For change in years of education from 12 years to 13 years, savings increases from **(-86.493(13-12)+11.793(169-144))=$208.332**,holding consumption, age and size constant.
+
+For a family size of 2, 1 year increase in age, the savings increases by **(88.194-(13.964(2))= $60.266** keeping education, age, size,consumption and black constant.
+
+
+For a household head of 30 years, an increase in family size by 1, increases the savings by **(822.285-13.964(30))= $403.365** keeping education, age, consumption and black constant.
+
+For a family consumption of $100, an increase in family size by 1, increases the savings by **(822.285-0.042(100))= $818.085** keeping education, age, consumption and black constant.
+
+For a family size of 2, $1 increase in consumption, the savings decreases by **(0.048-0.042(2))= $0.036** keeping education, age, size,consumption and black constant.
+
+For every $1 increase in consumption, saving will increase by **(0.048-0.042)=$0.006** holding education, age and size constant
+
+The regression model explains 6.7% of variations in savings.  
+  
+
+<h5 align="left"><font color="#00008B">Note</font></h5>
+In our regression, we tried using log of savings and making education term quadratic. As savings have negative as well as zero values, we are unable to convert savings to logarithmic. Furthermore, we also tried squaring the education variable, to check for nonlinear relationship between savings and education, however our regression results show it is insignificant. Looking at the scatter plot as well as other regression results they all show a significant linear relationship between the dependent and the variable of interest.  
+
+
+<h3 align="center"><font color="#00008B">Results</font></h3>
+
+<h5 align="left"><font color="#00008B">Hypothesis Testing</font></h5>
+```{r hypothesis_test, echo=FALSE, message=F, warning=FALSE, comment=""}
+#Running joint hypothesis test to check whether age and size collectively affect savings or no
+
+lht(lr8, c("age=0", "I(age * size)=0"), white.adjust="hc1")
+```
+
+**F value = 2.21**   
+Since F1 < 3, we fail to reject the null hypothesis. The F-test statistic is 2.21, and the associated p-value is 0.1146. This p-value is greater than the typical significance level of 0.05, suggesting that there isn't sufficient evidence to reject the null hypothesis.
+
+Therefore, based on these results, you wouldn't reject the null hypothesis that both 'age' and 'I(age * size)' coefficients are zero in the full model. In other words, the additional terms related to 'age' and its interaction with 'size' do not significantly improve the model fit compared to the restricted model.
+
+
+
+<h5 align="left"><font color="#00008B">Probit and Logit regression</font></h5>
+
+
+
+```{r probit_logit, echo=FALSE, message=FALSE, warning=FALSE, comment=""}
+
+
+#probit
+
+sp_small$debt_dummy <- ifelse(sp_small$sav < 0, 1, 0) #debt_dummy takes value 1 when savings is less than 0
+  
+p1=glm(debt_dummy~educ + cons+ age+ I(age*size)+ size, family=binomial(link="probit"), x=TRUE, data=sp_small) #running  probit regression 
+fm3a= maBina(p1, x.mean=TRUE, rev.dum=TRUE, digits=3)
+stargazer(p1, fm3a, se=list(NULL, NULL),
+title="Probit Regression - Effects of Education on Debt", type="text",
+star.cutoffs=NA, df=FALSE, digits=3, keep.stat = c("n","ll", "lr"))
+
+
+
+#logit
+
+l1=glm(debt_dummy~educ + cons+ age+ I(age*size)+ size, family=binomial, x=TRUE, data=sp_small) #running  logit regression 
+fm5a=maBina(l1, x.mean=TRUE, rev.dum=TRUE, digits=3)
+stargazer(l1, fm5a, se=list(NULL, NULL),
+title="Logit Regression - Effect of Education on Debt", type="text",
+star.cutoffs=NA, df=FALSE, digits=3, keep.stat = c("n","ll"))
+
+
+```
+
+
+
+<h5 align="left"><font color="#00008B">Probit regression equation with a single regressor</font></h5>  
+
+
+$$Pr(Y=1|x) = Φ(β0 +β1X) $$ 
+
+Y is a binary variable (debt_dummy) which takes the value 1 if the person has negative savings and 0 otherwise.  
+X is the years of education of the person.  
+
+Probit regression uses the standard normal cumulative distribution function.  
+The Probit model calculates the probability of a person being in debt for a certain years of education.  
+For eg. For a person with 16 years of education (bachelor's) the probability of being in debt is:  
+$$Pr(Y=1, x=16) = Φ(3.367+(-0.073*16)) = Φ(2.199) = 0.98574  $$ 
+For eg. For a person with 18 years of education (master's) the probability of being in debt is:  
+$$Pr(Y=1, x=18) = Φ(3.367+(-0.073*18)) = Φ(2.053) = 0.97982  $$
+
+Since our sample is less (97), the individual observations are having a substantial impact on the probability. This is leading to a less stable and more sensitive results. Never the less, the relationship between two variables savings and education still holds true. As we can see in above equation, there is a decrease in probability of being in debt with increase in years of education.   
+
+The intercept represents the log odds of having debt when education is held 0. i.e. 
+$$Φ(3.367)= 0.99961$$ 
+
+In the probit regression, the estimate suggests that, everything else the same, the increase in education by 1 year on average will decrease the probability of debt by 1.7 percent.
+
+<h5 align="left"><font color="#00008B">Logit regression equation with a single regressor</font></h5> 
+
+$$Pr(Y=1|X) =   1 / 1+e^{-(β0+β1X)}$$  
+
+The Logit model also calculates the probability of a person being in debt for a certain years of education similar to probit model.  
+The Logit model uses cumulative standard logistic distribution function.  
+As with probit, the logit coefficients are best interpreted by computing predicted  
+probabilities and differences in predicted probabilities.  
+
+For eg. For a person with 16 years of education (bachelor's) the probability of being in debt using Logit model is:  
+$$Pr(Y=1, x=16) =       1  / 1+e^{-(5.951-0.121*16)}= 0.9822$$  
+For eg. For a person with 18 years of education (master's) the probability of being in debt using Logit model is:  
+$$Pr(Y=1, x=18) =       1  / 1+e^{-(5.951-0.121*18)}= 0.9775$$  
+
+The negative correlation between education and debt is maintained in the Logit model too.  
+The intercept represents the log odds of having debt when education is held 0. i.e.   
+    $$1 / 1+e^{-(5.951)}  = 0.9974$$  
+
+<h3 align="center"><font color="#00008B">Conclusion</font></h3>
+In conclusion, our findings support our hypothesis that education effects annual savings positively. An educated individual has a better understanding of financial concepts such as compound interest. By avoiding excessive debt and prioritizing debt repayment, these individuals free up more of their income for saving. They are also less likely to have consume more than necessary. Overall they are more financially literate as compared to individuals with less years of education. Not only that, but having more education means that they are more likely to be hired for positions that pay a lot of money. All of these factors contribute to higher savings for educated people. 
+
+<h5 align="left"><font color="#00008B">Limitations:</font></h5>
+
+Since our data set is small with only 100 observations it may lead to sensitivity in our analysis. Some important consequences of a small data set to be aware of is the fact that our regression coefficients may have higher standard errors, as well as higher magnitudes. In terms of sample representatives and internal validation, we are also lacking a variety in demographics as our sample has extremely less African Americans. Reverse causality is difficult to investigate as we do not have additional past data. We do not know whether the house hold head that chose to pursue more years of education, did so because their parents had saved enough money for them. Macroeconomic conditions of 1980s was such that it was a period of rapid technological innovation, with the widespread adoption of personal computers. An external validation for our data could be that people were seeking more years of education because the market required more skilled labor. There was a change in market needs after the brief recession of 1980's. 
